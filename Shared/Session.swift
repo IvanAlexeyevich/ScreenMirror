@@ -26,4 +26,10 @@ struct BroadcastStatus: Codable {
     var actualMbps = 0.0
     var queuedBytes = 0
     var pacingBytes = 0
+    var pacingMode = "direct"
+    var deliveryNote: String? = nil
+    var httpReaders = 0
+    var disconnections = 0
+    var captureQueueMs = 0.0
+    var avOffsetMs: Double? = nil
 }

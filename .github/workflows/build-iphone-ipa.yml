@@ -1,5 +1,7 @@
 name: Build iPhone IPA (Windows installation)
 on:
+  push:
+    branches: [codex/stream-stability-051]
   workflow_dispatch:
     inputs:
       bundle_id:
@@ -13,7 +15,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 30
     env:
-      MIRROR_BUNDLE_ID: ${{ inputs.bundle_id }}
+      MIRROR_BUNDLE_ID: ${{ inputs.bundle_id || 'com.local.ScreenMirror' }}
     steps:
       - uses: actions/checkout@v4
       - name: Validate bundle ID
@@ -27,6 +29,10 @@ jobs:
           PY
       - name: Test saved settings, UDP discovery and SOAP
         run: python3 tools/run_tests.py
+      - name: Verify production TS, jitter recovery and lossless fallback
+        run: |
+          command -v ffmpeg || brew install ffmpeg
+          bash tools/test_mux.sh
       - name: Build for a real iPhone (unsigned)
         shell: bash
         run: |

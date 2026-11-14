@@ -99,7 +99,7 @@ import os
                         let (data, _) = try await URLSession.shared.data(for: req)
                         let state = try JSONDecoder().decode(BroadcastStatus.self, from: data)
                         self?.broadcasting = true
-                        self?.note("Broadcast: кадров \(state.videoFrames), AAC \(state.audioPackets), сегментов \(state.segments), выход \(state.outputSize), цель \(state.targetBitrate), средний TS \(String(format: "%.2f", state.actualMbps)) Мбит/с, очередь HTTP \(state.queuedBytes) байт, очередь подачи \(state.pacingBytes) байт; HTTP: \(state.httpRequests.suffix(3).joined(separator: " | "))")
+                        self?.note("Broadcast: кадров \(state.videoFrames), AAC \(state.audioPackets), сегментов \(state.segments), выход \(state.outputSize), цель \(state.targetBitrate), средний TS \(String(format: "%.2f", state.actualMbps)) Мбит/с, очередь HTTP \(state.queuedBytes) байт, очередь подачи \(state.pacingBytes) байт, режим \(state.pacingMode), TV readers \(state.httpReaders), разрывов \(state.disconnections), примечание \(state.deliveryNote ?? "нет"), очередь захвата \(Int(state.captureQueueMs)) мс, A/V \(state.avOffsetMs.map { String(Int($0)) } ?? "нет аудио") мс; HTTP: \(state.httpRequests.suffix(3).joined(separator: " | "))")
                         self?.mirrorStatus = "\(state.state). \(state.outputSize), \(state.targetBitrate / 1_000_000) Мбит/с. Кадров: \(state.videoFrames), AAC: \(state.audioPackets). Очередь HTTP: \(state.queuedBytes / 1024) КБ."
                     } catch is CancellationError { return }
                     catch { self?.broadcasting = false; self?.mirrorStatus = "Расширение не отвечает. Если запуск завершился ошибкой, подготовьте трансляцию заново." }

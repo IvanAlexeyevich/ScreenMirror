@@ -1,7 +1,7 @@
 import Foundation
 
 /// Constant-rate transport with MPEG-TS null stuffing. Encoded media is unchanged.
-/// Fixed 20 ms ticks avoid generating seconds of padding after an app suspension.
+/// Budget uses elapsed monotonic time; a delayed/coalesced timer must not halve throughput.
 final class TSPacketPacer {
     struct Batch { let bytes: Data; let startsGOP: Bool }
     private struct Part { let bytes: Data; var offset = 0; let startsGOP: Bool }
@@ -18,11 +18,27 @@ final class TSPacketPacer {
         guard !bytes.isEmpty else { return }
         parts.append(Part(bytes: bytes, startsGOP: startsGOP)); queuedBytes += bytes.count
     }
-    func tick() -> Batch? {
+    /// Extract every unsent media byte in order when switching to direct delivery.
+    /// A partially emitted PES/GOP retains its continuation flag, never a false IDR.
+    func drainPending() -> [Batch] {
+        var result: [Batch] = []
+        for index in head..<parts.count {
+            let part = parts[index]
+            if part.offset < part.bytes.count {
+                result.append(Batch(bytes: part.bytes.subdata(in: part.offset..<part.bytes.count), startsGOP: part.startsGOP && part.offset == 0))
+            }
+        }
+        parts.removeAll(); head = 0; queuedBytes = 0; credit = 0; started = false
+        return result
+    }
+    func tick(elapsedNanoseconds: UInt64 = 20_000_000) -> Batch? {
         guard started || queuedBytes > 0 else { return nil }
-        // The denominator includes 8 bits/byte, 50 ticks/second, 188 bytes/packet.
-        credit += Int64(bitrate)
-        let count = Int(credit / 75200); credit %= 75200
+        // Cap a single catch-up batch: do not emit seconds of padding after pause.
+        let elapsed = min(elapsedNanoseconds, 200_000_000)
+        credit += Int64(bitrate) * Int64(elapsed)
+        let denominator: Int64 = 188 * 8 * 1_000_000_000
+        let count = Int(credit / denominator); credit %= denominator
+        guard count > 0 else { return nil }
         var bytes = Data(); var begins = false
         while bytes.count < count * 188 && head < parts.count {
             let part = parts[head]

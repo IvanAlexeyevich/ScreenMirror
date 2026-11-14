@@ -98,6 +98,14 @@ import Foundation
         precondition(wire.count % 188 == 0 && !wire.isEmpty)
         precondition(mux.bytes.isEmpty)
         try wire.write(to: URL(fileURLWithPath: args[3]))
+        let resilient = LivePacingController(bitrate: 1_000_000, enabled: true)
+        let split = 188 * 400
+        var recovered = Data()
+        for batch in resilient.enqueue(wire.subdata(in: 0..<split), startsGOP: true) { recovered.append(batch.bytes) }
+        for batch in resilient.tick(now: 20_000_000) { recovered.append(batch.bytes) }
+        for batch in resilient.enqueue(wire.subdata(in: split..<wire.count), startsGOP: false) { recovered.append(batch.bytes) }
+        precondition(resilient.mode == .directFallback && resilient.queuedBytes == 0)
+        try recovered.write(to: URL(fileURLWithPath: args[3] + ".fallback.ts"))
         let paced = TSPacketPacer(bitrate: 6_192_000)
         paced.enqueue(wire, startsGOP: true)
         var padded = Data()

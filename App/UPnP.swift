@@ -106,8 +106,9 @@ enum UPnP {
         let root = try await soap(url, type: type, action: "GetProtocolInfo", fields: [])
         return root.all("Sink").first?.text ?? "Sink отсутствует"
     }
-    static func play(_ tv: TV, url: URL, mime: String) async throws {
-        let didl = "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\"><item id=\"1\" parentID=\"0\" restricted=\"1\"><dc:title>Screen Mirror test</dc:title><upnp:class>object.item.videoItem</upnp:class><res protocolInfo=\"http-get:*:\(mime):*\">\(xmlEscape(url.absoluteString))</res></item></DIDL-Lite>"
+    static func play(_ tv: TV, url: URL, mime: String, live: Bool = false) async throws {
+        let features = live ? LiveDLNA.features : "*"
+        let didl = "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\"><item id=\"1\" parentID=\"0\" restricted=\"1\"><dc:title>Screen Mirror test</dc:title><upnp:class>object.item.videoItem</upnp:class><res protocolInfo=\"http-get:*:\(mime):\(features)\">\(xmlEscape(url.absoluteString))</res></item></DIDL-Lite>"
         _ = try await soap(tv.transport, type: tv.transportType, action: "SetAVTransportURI", fields: [("InstanceID", "0"), ("CurrentURI", url.absoluteString), ("CurrentURIMetaData", didl)])
         _ = try await soap(tv.transport, type: tv.transportType, action: "Play", fields: [("InstanceID", "0"), ("Speed", "1")])
     }

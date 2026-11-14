@@ -163,11 +163,102 @@ final class NetworkTests: XCTestCase {
         XCTAssertEqual(tv.connection?.path, "/base/connection")
         let formats = try await UPnP.protocols(tv); XCTAssertEqual(formats, "http-get:*:video/mpeg:*")
         try await UPnP.play(tv, url: URL(string: "http://127.0.0.1:1234/screen.ts?a=1&b=2")!, mime: "video/mpeg")
+        let liveTV = TV(udn: tv.udn, name: tv.name, model: tv.model, location: tv.location,
+                        transport: URL(string: "/liveTransport", relativeTo: tv.transport)!.absoluteURL,
+                        transportType: tv.transportType, connection: tv.connection, connectionType: tv.connectionType)
+        try await UPnP.play(liveTV, url: URL(string: "http://127.0.0.1:1234/screen.ts")!, mime: "video/mpeg", live: true)
         let state = try await UPnP.state(tv); XCTAssertEqual(state, "PLAYING")
         try await UPnP.stop(tv)
         do {
             _ = try await UPnP.soap(tv.transport, type: tv.transportType, action: "Unsupported", fields: [])
             XCTFail("SOAP fault must propagate")
         } catch { XCTAssertTrue(error.localizedDescription.contains("Transition not available")) }
+    }
+}
+
+final class DeliveryRegressionTests: XCTestCase {
+    func packets(_ count: Int, mark: UInt8 = 42) -> Data {
+        var data = Data()
+        for _ in 0..<count { data.append(contentsOf: [0x47,0x01,0x00,0x10]); data.append(Data(repeating: mark, count: 184)) }
+        return data
+    }
+    func media(_ batches: [TSPacketPacer.Batch]) -> Data {
+        var result = Data()
+        for batch in batches {
+            for i in stride(from: 0, to: batch.bytes.count, by: 188) {
+                let pid = Int(batch.bytes[i+1] & 31) * 256 + Int(batch.bytes[i+2])
+                if pid != 8191 { result.append(batch.bytes.subdata(in: i..<(i+188))) }
+            }
+        }
+        return result
+    }
+    func testCoalescedTimerUsesElapsedTimeInsteadOfCallCount() {
+        let pacer = TSPacketPacer(bitrate: 6_192_000)
+        let source = packets(1); pacer.enqueue(source, startsGOP: true)
+        var output: [TSPacketPacer.Batch] = []; var duration: UInt64 = 0
+        for i in 0..<200 {
+            let elapsed: UInt64 = i % 2 == 0 ? 40_000_000 : 100_000_000
+            duration += elapsed
+            output.append(pacer.tick(elapsedNanoseconds: elapsed)!)
+        }
+        let bytes = output.reduce(0) { $0 + $1.bytes.count }
+        let expected = Double(duration) / 1e9 * 6_192_000 / 8
+        XCTAssertLessThan(abs(Double(bytes) - expected), 188)
+        XCTAssertEqual(media(output), source)
+    }
+    func testOverflowSwitchesToDirectWithoutLosingPartialPES() {
+        let controller = LivePacingController(bitrate: 1_000_000, enabled: true)
+        let first = packets(400, mark: 1), next = packets(100, mark: 2), idr = packets(10, mark: 3)
+        XCTAssertTrue(controller.enqueue(first, startsGOP: true).isEmpty)
+        let tick = controller.tick(now: 20_000_000)
+        XCTAssertTrue(tick.first!.startsGOP)
+        let fallback = controller.enqueue(next, startsGOP: false)
+        XCTAssertEqual(controller.mode, .directFallback)
+        XCTAssertEqual(controller.queuedBytes, 0)
+        XCTAssertFalse(fallback.first!.startsGOP) // continuation, not a new IDR
+        let direct = controller.enqueue(idr, startsGOP: true)
+        XCTAssertTrue(direct.first!.startsGOP)
+        XCTAssertEqual(media(tick + fallback + direct), first + next + idr)
+        XCTAssertTrue(controller.tick(now: 10_000_000_000).isEmpty)
+    }
+    func testLongTimerStallBypassesPacingWithoutHugePaddingBurst() {
+        let controller = LivePacingController(bitrate: 6_000_000, enabled: true)
+        let first = packets(100); _ = controller.enqueue(first, startsGOP: true)
+        let sent = controller.tick(now: 0)
+        let more = packets(20, mark: 2); _ = controller.enqueue(more, startsGOP: false)
+        let recovered = controller.tick(now: 3_000_000_000)
+        XCTAssertEqual(controller.mode, .directFallback)
+        XCTAssertEqual(media(sent + recovered), first + more)
+        XCTAssertLessThan(recovered.reduce(0) { $0 + $1.bytes.count }, 100_000)
+    }
+    func testJitteredTimerHasBoundedBacklogAndKeepsMedia() {
+        let controller = LivePacingController(bitrate: 6_000_000, enabled: true)
+        var source = Data(), received = Data(); var now: UInt64 = 0
+        for i in 0..<300 {
+            let data = packets(60, mark: UInt8(i % 255)); source.append(data)
+            received.append(media(controller.enqueue(data, startsGOP: i % 25 == 0)))
+            now += i % 2 == 0 ? 40_000_000 : 80_000_000
+            received.append(media(controller.tick(now: now)))
+            XCTAssertEqual(controller.mode, .paced)
+            XCTAssertLessThan(controller.queuedBytes, 200_000)
+        }
+        for _ in 0..<10 { now += 20_000_000; received.append(media(controller.tick(now: now))) }
+        XCTAssertEqual(received, source)
+    }
+    func testRecoveryFindsLostReaderEvenWhenTVStillReportsPlaying() {
+        var policy = StreamRecoveryPolicy()
+        var health = StreamHealth(); health.everHadReader = true; health.lastDisconnectAt = 5
+        XCTAssertFalse(policy.needsRestart(state: "PLAYING", health: health, now: 6))
+        XCTAssertTrue(policy.needsRestart(state: "PLAYING", health: health, now: 8))
+        XCTAssertFalse(policy.needsRestart(state: "PLAYING", health: health, now: 9))
+        XCTAssertTrue(policy.needsRestart(state: "PLAYING", health: health, now: 24))
+    }
+    func testHealthyAndUnstartedStreamsDoNotTriggerRecovery() {
+        var policy = StreamRecoveryPolicy()
+        XCTAssertFalse(policy.needsRestart(state: "PLAYING", health: StreamHealth(), now: 100))
+        var health = StreamHealth(); health.activeReaders = 1; health.everHadReader = true; health.lastWriteAt = 1
+        XCTAssertFalse(policy.needsRestart(state: "PLAYING", health: health, now: 100)) // no queued bytes: may be paused
+        health.queuedBytes = 1000
+        XCTAssertTrue(policy.needsRestart(state: "PLAYING", health: health, now: 100))
     }
 }

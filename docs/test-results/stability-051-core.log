@@ -1,0 +1,77 @@
+[0/1] Planning build
+Building for debugging...
+[0/11] Write sources
+[2/11] Write swift-version-33AAD5318C8D185.txt
+[4/14] Compiling MirrorCore LiveDLNA.swift
+[5/14] Compiling MirrorCore UPnP.swift
+[6/14] Emitting module MirrorCore
+[7/15] Compiling MirrorCore Session.swift
+[8/16] Wrapping AST for MirrorCore for debugging
+[10/18] Compiling MirrorCoreTests CoreTests.swift
+[11/18] Emitting module MirrorCoreTests
+[12/18] /workspace/ScreenMirror/.build/x86_64-unknown-linux-gnu/debug/ScreenMirrorCorePackageDiscoveredTests.derived/all-discovered-tests.swift
+[13/19] Write sources
+[15/22] Emitting module ScreenMirrorCorePackageDiscoveredTests
+[16/22] Compiling ScreenMirrorCorePackageDiscoveredTests all-discovered-tests.swift
+[17/22] Compiling ScreenMirrorCorePackageDiscoveredTests MirrorCoreTests.swift
+[18/20] Write Objects.LinkFileList
+[19/20] Linking ScreenMirrorCorePackageTests.xctest
+Build complete! (3.16s)
+Test Suite 'All tests' started at 2026-11-14 14:14:32.472
+Test Suite 'debug.xctest' started at 2026-11-14 14:14:32.478
+Test Suite 'CoreTests' started at 2026-11-14 14:14:32.478
+Test Case 'CoreTests.testAbsentAndCorruptPreferences' started at 2026-11-14 14:14:32.478
+Test Case 'CoreTests.testAbsentAndCorruptPreferences' passed (0.009 seconds)
+Test Case 'CoreTests.testDiscoveryResponseAndSubnetLimits' started at 2026-11-14 14:14:32.487
+Test Case 'CoreTests.testDiscoveryResponseAndSubnetLimits' passed (0.001 seconds)
+Test Case 'CoreTests.testImmediateGOPJoinAndBoundedCache' started at 2026-11-14 14:14:32.488
+Test Case 'CoreTests.testImmediateGOPJoinAndBoundedCache' passed (0.003 seconds)
+Test Case 'CoreTests.testOlderVideoPreferencesFillMissingFields' started at 2026-11-14 14:14:32.491
+Test Case 'CoreTests.testOlderVideoPreferencesFillMissingFields' passed (0.003 seconds)
+Test Case 'CoreTests.testPacerBitrateNoInitialPaddingAndPreservedMedia' started at 2026-11-14 14:14:32.494
+Test Case 'CoreTests.testPacerBitrateNoInitialPaddingAndPreservedMedia' passed (0.051 seconds)
+Test Case 'CoreTests.testPacerNeverPutsOldGOPBeforeNewIDRFlag' started at 2026-11-14 14:14:32.545
+Test Case 'CoreTests.testPacerNeverPutsOldGOPBeforeNewIDRFlag' passed (0.0 seconds)
+Test Case 'CoreTests.testPairingCodesAndCredentialsRejected' started at 2026-11-14 14:14:32.545
+Test Case 'CoreTests.testPairingCodesAndCredentialsRejected' passed (0.001 seconds)
+Test Case 'CoreTests.testPickerUsesActualResignedBroadcastID' started at 2026-11-14 14:14:32.546
+Test Case 'CoreTests.testPickerUsesActualResignedBroadcastID' passed (0.003 seconds)
+Test Case 'CoreTests.testPreferencesSurviveNewStoreInstanceAndKeepEverySetting' started at 2026-11-14 14:14:32.549
+Test Case 'CoreTests.testPreferencesSurviveNewStoreInstanceAndKeepEverySetting' passed (0.036 seconds)
+Test Case 'CoreTests.testStableIdentitySurvivesDHCPChange' started at 2026-11-14 14:14:32.585
+Test Case 'CoreTests.testStableIdentitySurvivesDHCPChange' passed (0.0 seconds)
+Test Case 'CoreTests.testStaticFramesAndBackwardClock' started at 2026-11-14 14:14:32.585
+Test Case 'CoreTests.testStaticFramesAndBackwardClock' passed (0.0 seconds)
+Test Case 'CoreTests.testUnknownVersionRejectedAndInvalidSettingsNormalized' started at 2026-11-14 14:14:32.586
+Test Case 'CoreTests.testUnknownVersionRejectedAndInvalidSettingsNormalized' passed (0.002 seconds)
+Test Suite 'CoreTests' passed at 2026-11-14 14:14:32.587
+	 Executed 12 tests, with 0 failures (0 unexpected) in 0.109 (0.109) seconds
+Test Suite 'DeliveryRegressionTests' started at 2026-11-14 14:14:32.587
+Test Case 'DeliveryRegressionTests.testCoalescedTimerUsesElapsedTimeInsteadOfCallCount' started at 2026-11-14 14:14:32.588
+Test Case 'DeliveryRegressionTests.testCoalescedTimerUsesElapsedTimeInsteadOfCallCount' passed (0.044 seconds)
+Test Case 'DeliveryRegressionTests.testHealthyAndUnstartedStreamsDoNotTriggerRecovery' started at 2026-11-14 14:14:32.631
+Test Case 'DeliveryRegressionTests.testHealthyAndUnstartedStreamsDoNotTriggerRecovery' passed (0.0 seconds)
+Test Case 'DeliveryRegressionTests.testJitteredTimerHasBoundedBacklogAndKeepsMedia' started at 2026-11-14 14:14:32.631
+Test Case 'DeliveryRegressionTests.testJitteredTimerHasBoundedBacklogAndKeepsMedia' passed (0.086 seconds)
+Test Case 'DeliveryRegressionTests.testLongTimerStallBypassesPacingWithoutHugePaddingBurst' started at 2026-11-14 14:14:32.717
+Test Case 'DeliveryRegressionTests.testLongTimerStallBypassesPacingWithoutHugePaddingBurst' passed (0.0 seconds)
+Test Case 'DeliveryRegressionTests.testOverflowSwitchesToDirectWithoutLosingPartialPES' started at 2026-11-14 14:14:32.718
+Test Case 'DeliveryRegressionTests.testOverflowSwitchesToDirectWithoutLosingPartialPES' passed (0.001 seconds)
+Test Case 'DeliveryRegressionTests.testRecoveryFindsLostReaderEvenWhenTVStillReportsPlaying' started at 2026-11-14 14:14:32.719
+Test Case 'DeliveryRegressionTests.testRecoveryFindsLostReaderEvenWhenTVStillReportsPlaying' passed (0.0 seconds)
+Test Suite 'DeliveryRegressionTests' passed at 2026-11-14 14:14:32.719
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.131 (0.131) seconds
+Test Suite 'NetworkTests' started at 2026-11-14 14:14:32.719
+Test Case 'NetworkTests.testActualDirectedUDPDiscoveryDeduplicatesResponses' started at 2026-11-14 14:14:32.719
+Test Case 'NetworkTests.testActualDirectedUDPDiscoveryDeduplicatesResponses' passed (0.311 seconds)
+Test Case 'NetworkTests.testActualHTTPDescriptionRelativeServicesAndSOAP' started at 2026-11-14 14:14:33.030
+Test Case 'NetworkTests.testActualHTTPDescriptionRelativeServicesAndSOAP' passed (0.027 seconds)
+Test Suite 'NetworkTests' passed at 2026-11-14 14:14:33.057
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.339 (0.339) seconds
+Test Suite 'debug.xctest' passed at 2026-11-14 14:14:33.058
+	 Executed 20 tests, with 0 failures (0 unexpected) in 0.579 (0.579) seconds
+Test Suite 'All tests' passed at 2026-11-14 14:14:33.058
+	 Executed 20 tests, with 0 failures (0 unexpected) in 0.579 (0.579) seconds
+◇ Test run started.
+↳ Testing Library Version: 6.0.3 (18c42c19cac3faf)
+✔ Test run with 0 tests passed after 0.001 seconds.

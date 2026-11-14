@@ -15,7 +15,10 @@ class Renderer(http.server.BaseHTTPRequestHandler):
         elif action=='Unsupported':contents='<s:Fault><detail><UPnPError><errorCode>701</errorCode><errorDescription>Transition not available</errorDescription></UPnPError></detail></s:Fault>';code=500
         elif action=='SetAVTransportURI':
             import xml.etree.ElementTree as ET
-            root=ET.fromstring(body);metadata=next(n.text for n in root.iter() if n.tag=='CurrentURIMetaData');ET.fromstring(metadata)
+            root=ET.fromstring(body);metadata=next(n.text for n in root.iter() if n.tag=='CurrentURIMetaData');didl=ET.fromstring(metadata)
+            if self.path=='/liveTransport':
+                resource=next(n for n in didl.iter() if n.tag.endswith('}res'))
+                assert resource.attrib['protocolInfo']=='http-get:*:video/mpeg:DLNA.ORG_OP=00;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=81000000000000000000000000000000'
             contents='';code=200
         else:contents='';code=200
         data=f'<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body>{contents}</s:Body></s:Envelope>'.encode()
