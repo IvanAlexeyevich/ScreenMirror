@@ -50,7 +50,15 @@ final class MediaPipeline {
                 self.log.info("Audio route changed: AAC converter reset; waiting for ReplayKit format")
             }
         }
-        try check(VTCompressionSessionCreate(allocator: kCFAllocatorDefault, width: Int32(config.width), height: Int32(config.height), codecType: kCMVideoCodecType_H264, encoderSpecification: [kVTVideoEncoderSpecification_RequireHardwareAcceleratedVideoEncoder as String: true] as CFDictionary, imageBufferAttributes: nil, compressedDataAllocator: nil, outputCallback: { ref, _, status, _, buffer in
+        // The hardware requirement key is only available to iOS app extensions
+        // from 17.4. Older systems use VideoToolbox's default encoder selection.
+        let specification: CFDictionary?
+        if #available(iOS 17.4, *) {
+            specification = [kVTVideoEncoderSpecification_RequireHardwareAcceleratedVideoEncoder as String: true] as CFDictionary
+        } else {
+            specification = nil
+        }
+        try check(VTCompressionSessionCreate(allocator: kCFAllocatorDefault, width: Int32(config.width), height: Int32(config.height), codecType: kCMVideoCodecType_H264, encoderSpecification: specification, imageBufferAttributes: nil, compressedDataAllocator: nil, outputCallback: { ref, _, status, _, buffer in
             guard let ref else { return }
             let owner = Unmanaged<MediaPipeline>.fromOpaque(ref).takeUnretainedValue()
             owner.queue.async {
