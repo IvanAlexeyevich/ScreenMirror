@@ -1,0 +1,6 @@
+Swift 6.0.3 Linux: 13 XCTest tests passed, 0 failures, 0 skips.
+Production TS harness: 360 H.264 frames, 564 AAC packets decoded.
+Decoded video and audio framemd5 before/after pacing: identical.
+Swift compiler frontend parse of all App/Shared/Broadcast sources: passed.
+PBX/plist/scheme/Python source validation: passed.
+Apple SDK typecheck/simulator build, camera, actual iPhone/Samsung tests: NOT RUN here.

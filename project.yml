@@ -1,0 +1,44 @@
+name: ScreenMirror
+options:
+  deploymentTarget:
+    iOS: '16.0'
+settings:
+  base:
+    MIRROR_BUNDLE_ID: org.example.ScreenMirror
+    SWIFT_VERSION: '5.0'
+    TARGETED_DEVICE_FAMILY: '1'
+    CODE_SIGN_STYLE: Automatic
+targets:
+  ScreenMirror:
+    type: application
+    platform: iOS
+    sources:
+      - App
+      - Shared
+      - path: Fixtures
+        buildPhase: resources
+    dependencies:
+      - target: Broadcast
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(MIRROR_BUNDLE_ID)
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Config/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Config/Manual.entitlements
+  Broadcast:
+    type: app-extension
+    platform: iOS
+    sources:
+      - Broadcast
+      - Shared
+      - App/UPnP.swift
+      - App/HTTPServer.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(MIRROR_BUNDLE_ID).Broadcast
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Config/Broadcast-Info.plist
+        CODE_SIGN_ENTITLEMENTS: Config/Manual.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES

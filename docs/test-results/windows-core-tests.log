@@ -1,0 +1,66 @@
+[0/1] Planning build
+Building for debugging...
+[0/11] Write sources
+[2/11] Write swift-version-33AAD5318C8D185.txt
+[4/13] Compiling MirrorCore BroadcastExtensionID.swift
+[5/13] Emitting module MirrorCore
+[6/14] Wrapping AST for MirrorCore for debugging
+[8/16] Emitting module MirrorCoreTests
+[9/16] Compiling MirrorCoreTests CoreTests.swift
+[10/17] /workspace/ScreenMirror/.build/x86_64-unknown-linux-gnu/debug/ScreenMirrorCorePackageDiscoveredTests.derived/all-discovered-tests.swift
+[11/18] Write sources
+[12/18] Wrapping AST for MirrorCoreTests for debugging
+[14/21] Emitting module ScreenMirrorCorePackageDiscoveredTests
+[15/21] Compiling ScreenMirrorCorePackageDiscoveredTests MirrorCoreTests.swift
+[16/21] Compiling ScreenMirrorCorePackageDiscoveredTests all-discovered-tests.swift
+[17/22] /workspace/ScreenMirror/.build/x86_64-unknown-linux-gnu/debug/ScreenMirrorCorePackageTests.derived/runner.swift
+[18/23] Write sources
+[19/23] Wrapping AST for ScreenMirrorCorePackageDiscoveredTests for debugging
+[21/25] Emitting module ScreenMirrorCorePackageTests
+[22/25] Compiling ScreenMirrorCorePackageTests runner.swift
+[23/25] Write Objects.LinkFileList
+[24/25] Linking ScreenMirrorCorePackageTests.xctest
+Build complete! (3.95s)
+Test Suite 'All tests' started at 2026-11-14 13:18:59.097
+Test Suite 'debug.xctest' started at 2026-11-14 13:18:59.106
+Test Suite 'CoreTests' started at 2026-11-14 13:18:59.106
+Test Case 'CoreTests.testAbsentAndCorruptPreferences' started at 2026-11-14 13:18:59.106
+Test Case 'CoreTests.testAbsentAndCorruptPreferences' passed (0.003 seconds)
+Test Case 'CoreTests.testDiscoveryResponseAndSubnetLimits' started at 2026-11-14 13:18:59.109
+Test Case 'CoreTests.testDiscoveryResponseAndSubnetLimits' passed (0.102 seconds)
+Test Case 'CoreTests.testImmediateGOPJoinAndBoundedCache' started at 2026-11-14 13:18:59.211
+Test Case 'CoreTests.testImmediateGOPJoinAndBoundedCache' passed (0.002 seconds)
+Test Case 'CoreTests.testOlderVideoPreferencesFillMissingFields' started at 2026-11-14 13:18:59.213
+Test Case 'CoreTests.testOlderVideoPreferencesFillMissingFields' passed (0.101 seconds)
+Test Case 'CoreTests.testPacerBitrateNoInitialPaddingAndPreservedMedia' started at 2026-11-14 13:18:59.313
+Test Case 'CoreTests.testPacerBitrateNoInitialPaddingAndPreservedMedia' passed (0.025 seconds)
+Test Case 'CoreTests.testPacerNeverPutsOldGOPBeforeNewIDRFlag' started at 2026-11-14 13:18:59.339
+Test Case 'CoreTests.testPacerNeverPutsOldGOPBeforeNewIDRFlag' passed (0.0 seconds)
+Test Case 'CoreTests.testPairingCodesAndCredentialsRejected' started at 2026-11-14 13:18:59.339
+Test Case 'CoreTests.testPairingCodesAndCredentialsRejected' passed (0.001 seconds)
+Test Case 'CoreTests.testPickerUsesActualResignedBroadcastID' started at 2026-11-14 13:18:59.340
+Test Case 'CoreTests.testPickerUsesActualResignedBroadcastID' passed (0.003 seconds)
+Test Case 'CoreTests.testPreferencesSurviveNewStoreInstanceAndKeepEverySetting' started at 2026-11-14 13:18:59.342
+Test Case 'CoreTests.testPreferencesSurviveNewStoreInstanceAndKeepEverySetting' passed (0.038 seconds)
+Test Case 'CoreTests.testStableIdentitySurvivesDHCPChange' started at 2026-11-14 13:18:59.380
+Test Case 'CoreTests.testStableIdentitySurvivesDHCPChange' passed (0.0 seconds)
+Test Case 'CoreTests.testStaticFramesAndBackwardClock' started at 2026-11-14 13:18:59.380
+Test Case 'CoreTests.testStaticFramesAndBackwardClock' passed (0.0 seconds)
+Test Case 'CoreTests.testUnknownVersionRejectedAndInvalidSettingsNormalized' started at 2026-11-14 13:18:59.381
+Test Case 'CoreTests.testUnknownVersionRejectedAndInvalidSettingsNormalized' passed (0.002 seconds)
+Test Suite 'CoreTests' passed at 2026-11-14 13:18:59.383
+	 Executed 12 tests, with 0 failures (0 unexpected) in 0.276 (0.276) seconds
+Test Suite 'NetworkTests' started at 2026-11-14 13:18:59.383
+Test Case 'NetworkTests.testActualDirectedUDPDiscoveryDeduplicatesResponses' started at 2026-11-14 13:18:59.383
+Test Case 'NetworkTests.testActualDirectedUDPDiscoveryDeduplicatesResponses' passed (0.311 seconds)
+Test Case 'NetworkTests.testActualHTTPDescriptionRelativeServicesAndSOAP' started at 2026-11-14 13:18:59.694
+Test Case 'NetworkTests.testActualHTTPDescriptionRelativeServicesAndSOAP' passed (0.032 seconds)
+Test Suite 'NetworkTests' passed at 2026-11-14 13:18:59.726
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.343 (0.343) seconds
+Test Suite 'debug.xctest' passed at 2026-11-14 13:18:59.726
+	 Executed 14 tests, with 0 failures (0 unexpected) in 0.62 (0.62) seconds
+Test Suite 'All tests' passed at 2026-11-14 13:18:59.726
+	 Executed 14 tests, with 0 failures (0 unexpected) in 0.62 (0.62) seconds
+◇ Test run started.
+↳ Testing Library Version: 6.0.3 (18c42c19cac3faf)
+✔ Test run with 0 tests passed after 0.001 seconds.
