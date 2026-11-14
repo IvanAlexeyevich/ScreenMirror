@@ -37,7 +37,7 @@ final class SampleHandler: RPBroadcastSampleHandler {
         let http = HTTPServer(allowedHost: host, port: 19192, token: config.token)
         http.subscribeStream = { [weak p] callback in p?.live.subscribe(callback) ?? UUID() }
         http.unsubscribeStream = { [weak p] id in p?.live.unsubscribe(id) }
-        http.streamQueueByteLimit = max(512_000, config.bitrate * 3 / 16)
+        http.streamQueueByteLimit = max(2_000_000, config.bitrate / 4)
         // Both closures execute on HTTPServer's serial queue.
         var mediaRequests: [String] = []
         http.onRequest = { [weak self] path in
@@ -50,7 +50,9 @@ final class SampleHandler: RPBroadcastSampleHandler {
             guard let p else { return nil }
             if name == "status.json" {
                 var status = p.snapshot(); status.httpRequests = mediaRequests
-                status.queuedBytes = http?.streamQueuedBytes ?? 0
+                let health = http?.healthSnapshot() ?? StreamHealth()
+                status.queuedBytes = health.queuedBytes
+                status.httpReaders = health.activeReaders; status.disconnections = health.disconnections
                 return ((try? JSONEncoder().encode(status)) ?? Data(), "application/json")
             }
             if name == "stop" {
@@ -73,28 +75,40 @@ final class SampleHandler: RPBroadcastSampleHandler {
         }
         try Task.checkCancellation()
         setStage("Передача \(isHLS ? "HLS" : "MPEG-TS video/mpeg") телевизору через AVTransport")
-        try await UPnP.play(config.tv, url: uri, mime: mime)
+        try await UPnP.play(config.tv, url: uri, mime: mime, live: !isHLS)
         log.info("Play принят TV; поток готов. Это не подтверждение декодирования на TV.")
         setStage("Проверка связи с телевизором")
         var failures = 0
+        var recovery = StreamRecoveryPolicy()
         while !Task.isCancelled {
-            try await Task.sleep(nanoseconds: 5_000_000_000)
+            try await Task.sleep(nanoseconds: 2_000_000_000)
             guard config.reconnect else { continue }
             do {
                 if let ip = HTTPServer.localIP(), ip != uri.host,
                    var parts = URLComponents(url: uri, resolvingAgainstBaseURL: false) {
                     parts.host = ip
-                    if let changed = parts.url { uri = changed; try await UPnP.play(config.tv, url: uri, mime: mime) }
+                    if let changed = parts.url { uri = changed; try await UPnP.play(config.tv, url: uri, mime: mime, live: !isHLS) }
                 }
                 let state = try await UPnP.state(config.tv)
-                if state == "STOPPED" || state == "NO_MEDIA_PRESENT" {
-                    try await UPnP.play(config.tv, url: uri, mime: mime)
+                let health = http.healthSnapshot()
+                if recovery.needsRestart(state: state, health: isHLS ? StreamHealth() : health, now: monotonicSeconds()) {
+                    log.info("Recovering TV playback: state=\(state, privacy: .public), readers=\(health.activeReaders), queued=\(health.queuedBytes)")
+                    // ReplayKit/encoders stay alive. Re-open from the freshest IDR,
+                    // with a new URI so the renderer does not reuse an old HTTP read.
+                    if !isHLS {
+                        var parts = URLComponents(url: uri, resolvingAgainstBaseURL: false)!
+                        parts.queryItems = [URLQueryItem(name: "session", value: UUID().uuidString)]
+                        if let updated = parts.url { uri = updated }
+                    }
+                    if state != "STOPPED" && state != "NO_MEDIA_PRESENT" { try? await UPnP.stop(config.tv) }
+                    try await UPnP.play(config.tv, url: uri, mime: mime, live: !isHLS)
                 }
                 failures = 0
             } catch {
                 failures += 1
                 log.error("AVTransport retry \(failures): \(error.localizedDescription, privacy: .public)")
-                if failures >= 6 { throw MirrorError(message: "Связь с TV не восстановлена: \(error.localizedDescription)") }
+                // A temporary LAN/renderer outage is not a fatal capture error.
+                // Keep the bounded latest-GOP cache and retry while user broadcast is active.
                 try await Task.sleep(nanoseconds: UInt64(min(15, failures * 2)) * 1_000_000_000)
             }
         }

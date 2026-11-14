@@ -44,7 +44,7 @@ for index, target in enumerate(['ScreenMirror', 'Broadcast']):
     if app: phases.append(embed)
     bundle = '$(MIRROR_BUNDLE_ID)' + ('' if app else '.Broadcast')
     plist = 'Config/Info.plist' if app else 'Config/Broadcast-Info.plist'
-    settings = f'PRODUCT_NAME = "$(TARGET_NAME)"; PRODUCT_BUNDLE_IDENTIFIER = "{bundle}"; CODE_SIGN_STYLE = Automatic; CODE_SIGN_ENTITLEMENTS = Config/Manual.entitlements; INFOPLIST_FILE = {plist}; GENERATE_INFOPLIST_FILE = NO; CURRENT_PROJECT_VERSION = 8; MARKETING_VERSION = 0.5.0;'
+    settings = f'PRODUCT_NAME = "$(TARGET_NAME)"; PRODUCT_BUNDLE_IDENTIFIER = "{bundle}"; CODE_SIGN_STYLE = Automatic; CODE_SIGN_ENTITLEMENTS = Config/Manual.entitlements; INFOPLIST_FILE = {plist}; GENERATE_INFOPLIST_FILE = NO; CURRENT_PROJECT_VERSION = 9; MARKETING_VERSION = 0.5.1;'
     if not app: settings += ' APPLICATION_EXTENSION_API_ONLY = YES; SKIP_INSTALL = YES;'
     config_list = configs(target, settings)
     obj(target+'target', f'isa = PBXNativeTarget; buildConfigurationList = {config_list}; buildPhases = ({",".join(phases)},); buildRules = (); dependencies = ({dependency + "," if app else ""}); name = {target}; productName = {target}; productReference = {products[index]}; productType = "com.apple.product-type.{"application" if app else "app-extension"}";')

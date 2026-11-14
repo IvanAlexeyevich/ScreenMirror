@@ -24,7 +24,12 @@ final class MediaPipeline {
     private var schedule = FrameSchedule()
     private var ticker: DispatchSourceTimer?
     private var networkTicker: DispatchSourceTimer?
-    private var pacer: TSPacketPacer?
+    private var pacing: LivePacingController?
+    private let cachedStatus = LockedValue(BroadcastStatus(state: "Подготовка", videoFrames: 0, audioPackets: 0, segments: 0, lastError: nil))
+    private var lastStatusUpdate: Double = 0
+    private var captureQueueMs = 0.0
+    private var lastEncodedVideoSeconds: Double?
+    private var lastAudioInputAt: Double = 0
     private var paused = false
     private var segmentDiscontinuity = false
     private var pending = 0
@@ -97,12 +102,15 @@ final class MediaPipeline {
         if config.transport == "ts", config.steadyStream {
             // Leave headroom for AAC, TS overhead and keyframe bursts. Padding
             // does not reduce the selected encoder bitrate or picture quality.
-            pacer = TSPacketPacer(bitrate: config.bitrate * 5 / 4 + 192_000)
+            pacing = LivePacingController(bitrate: config.bitrate, enabled: true)
             let networkTicker = DispatchSource.makeTimerSource(queue: queue)
             networkTicker.schedule(deadline: .now(), repeating: .milliseconds(20), leeway: .milliseconds(1))
             networkTicker.setEventHandler { [weak self] in
-                guard let self, !self.stopped, !self.paused, let batch = self.pacer?.tick() else { return }
-                self.deliverLive(batch.bytes, startsGOP: batch.startsGOP)
+                guard let self, !self.stopped, !self.paused else { return }
+                for batch in self.pacing?.tick(now: DispatchTime.now().uptimeNanoseconds) ?? [] {
+                    self.deliverLive(batch.bytes, startsGOP: batch.startsGOP)
+                }
+                self.refreshStatus()
             }
             self.networkTicker = networkTicker; networkTicker.resume()
         }
@@ -110,9 +118,11 @@ final class MediaPipeline {
     func process(_ buffer: CMSampleBuffer, type: RPSampleBufferType) {
         // A semaphore bounds queued video work before dispatch; no unlimited buffer backlog.
         guard admission.wait(timeout: .now()) == .success else { return }
+        let receivedAt = monotonicSeconds()
         queue.async {
             defer { self.admission.signal() }
             guard !self.stopped, !self.paused else { return }
+            self.captureQueueMs = max(0, monotonicSeconds() - receivedAt) * 1000
             do {
                 let timestamp = CMSampleBufferGetPresentationTimeStamp(buffer)
                 guard timestamp.isNumeric else { return }
@@ -178,7 +188,7 @@ final class MediaPipeline {
             self.latestImage = nil
             self.lastVideo = .invalid
             self.schedule.reset()
-            if self.pacer != nil { self.pacer = TSPacketPacer(bitrate: self.config.bitrate * 5 / 4 + 192_000) }
+            self.pacing?.discardForSystemPause()
             self.converter?.reset(); self.audioClock = nil
         }
     }
@@ -224,23 +234,26 @@ final class MediaPipeline {
             annex.append(contentsOf: [0,0,0,1]); annex.append(data.subdata(in: offset..<(offset + size))); offset += size
         }
         mux.appendVideo(annex, pts: pts, key: key); frames += 1
+        lastEncodedVideoSeconds = Double(pts) / 90000
         if firstEncodedAt == nil { firstEncodedAt = Date() }
         if config.transport == "ts" { publishLive(startsGOP: key) }
+        refreshStatus()
         if mux.bytes.count > 4_000_000 { throw MirrorError(message: "Сегмент превысил лимит памяти: нет своевременного IDR") }
     }
     private func publishLive(startsGOP: Bool = false) {
         let bytes = mux.drain()
-        if let pacer {
-            pacer.enqueue(bytes, startsGOP: startsGOP)
-            if pacer.queuedBytes > max(2_000_000, config.bitrate / 4) {
-                onError?(MirrorError(message: "Энкодер выдаёт поток быстрее выбранного темпа. Отключите ровную подачу в настройках."))
+        if let pacing {
+            for batch in pacing.enqueue(bytes, startsGOP: startsGOP) {
+                deliverLive(batch.bytes, startsGOP: batch.startsGOP)
             }
         } else { deliverLive(bytes, startsGOP: startsGOP) }
     }
     private func deliverLive(_ bytes: Data, startsGOP: Bool) {
         byteCount += bytes.count; live.append(bytes, startsGOP: startsGOP)
+        refreshStatus()
     }
     private func audio(_ buffer: CMSampleBuffer) throws {
+        lastAudioInputAt = monotonicSeconds()
         guard let desc = CMSampleBufferGetFormatDescription(buffer) else { return }
         let format = AVAudioFormat(cmAudioFormatDescription: desc)
         if converter == nil || inputAudioFormat != format {
@@ -282,16 +295,22 @@ final class MediaPipeline {
             if status != .haveData || output.packetCount == 0 { break }
         }
     }
-    func snapshot() -> BroadcastStatus {
-        queue.sync {
-            var status = BroadcastStatus(state: "Захват активен; воспроизведение TV проверьте визуально", videoFrames: frames, audioPackets: audioPackets, segments: store.count, lastError: nil)
-            status.outputSize = "\(config.width)×\(config.height)"
-            status.targetBitrate = bitrate
-            status.pacingBytes = pacer?.queuedBytes ?? 0
-            if let firstEncodedAt { status.actualMbps = Double(byteCount) * 8 / max(0.1, Date().timeIntervalSince(firstEncodedAt)) / 1_000_000 }
-            return status
-        }
+    private func refreshStatus() {
+        let now = monotonicSeconds()
+        guard now - lastStatusUpdate >= 0.5 else { return }
+        lastStatusUpdate = now
+        var status = BroadcastStatus(state: "Захват активен; воспроизведение TV проверьте визуально", videoFrames: frames, audioPackets: audioPackets, segments: store.count, lastError: nil)
+        status.outputSize = "\(config.width)×\(config.height)"
+        status.targetBitrate = bitrate; status.pacingBytes = pacing?.queuedBytes ?? 0
+        status.pacingMode = pacing?.mode.rawValue ?? "direct"
+        status.deliveryNote = pacing?.fallbackReason
+        status.captureQueueMs = captureQueueMs
+        if now - lastAudioInputAt < 1, let audioClock, let video = lastEncodedVideoSeconds { status.avOffsetMs = (audioClock - video) * 1000 }
+        if let firstEncodedAt { status.actualMbps = Double(byteCount) * 8 / max(0.1, Date().timeIntervalSince(firstEncodedAt)) / 1_000_000 }
+        cachedStatus.set(status)
     }
+    // HTTP request handling must never block the live sender waiting on Core Image.
+    func snapshot() -> BroadcastStatus { cachedStatus.get() }
     deinit {
         ticker?.cancel(); networkTicker?.cancel()
         if let routeObserver { NotificationCenter.default.removeObserver(routeObserver) }
@@ -302,7 +321,7 @@ final class MediaPipeline {
         queue.sync {
             stopped = true
             ticker?.setEventHandler {}; ticker?.cancel(); ticker = nil
-            networkTicker?.setEventHandler {}; networkTicker?.cancel(); networkTicker = nil; pacer = nil
+            networkTicker?.setEventHandler {}; networkTicker?.cancel(); networkTicker = nil; pacing = nil
             latestImage = nil
             if let encoder { VTCompressionSessionInvalidate(encoder) }
             encoder = nil; converter = nil

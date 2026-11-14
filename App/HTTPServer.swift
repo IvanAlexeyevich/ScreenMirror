@@ -16,6 +16,14 @@ final class HTTPServer {
     var unsubscribeStream: ((UUID) -> Void)?
     private var subscriptions: [UUID: UUID] = [:]
     private var queuedBytes: [UUID: Int] = [:]
+    private var health = StreamHealth()
+    private let cachedHealth = LockedValue(StreamHealth())
+    func healthSnapshot() -> StreamHealth { cachedHealth.get() }
+    private func publishHealth() {
+        health.activeReaders = subscriptions.count
+        health.queuedBytes = queuedBytes.values.max() ?? 0
+        cachedHealth.set(health)
+    }
     var streamQueueByteLimit = 2_000_000
     // Read only from the HTTP queue (e.g. in resource callback).
     var streamQueuedBytes: Int { queuedBytes.values.max() ?? 0 }
@@ -27,7 +35,11 @@ final class HTTPServer {
         self.token = token; self.loopbackOnly = loopbackOnly
     }
     func start() async throws -> URL {
-        let listener = try NWListener(using: .tcp, on: port)
+        let tcp = NWProtocolTCP.Options()
+        tcp.noDelay = true
+        tcp.enableKeepalive = true
+        tcp.keepaliveIdle = 5; tcp.keepaliveInterval = 2; tcp.keepaliveCount = 3
+        let listener = try NWListener(using: NWParameters(tls: nil, tcp: tcp), on: port)
         self.listener = listener
         started = Date()
         return try await withCheckedThrowingContinuation { continuation in
@@ -81,12 +93,17 @@ final class HTTPServer {
     }
     private func close(_ connection: NWConnection, _ id: UUID) {
         guard clients.removeValue(forKey: id) != nil else { return }
-        if let subscription = subscriptions.removeValue(forKey: id) { unsubscribeStream?(subscription) }
+        if let subscription = subscriptions.removeValue(forKey: id) {
+            unsubscribeStream?(subscription)
+            health.disconnections += 1; health.lastDisconnectAt = monotonicSeconds()
+            onRequest?("stream: reader closed; disconnections=\(health.disconnections)")
+        }
         queuedBytes.removeValue(forKey: id)
+        publishHealth()
         connection.cancel()
     }
     private func stream(_ connection: NWConnection, id: UUID, head: Bool) {
-        let header = Data("HTTP/1.1 200 OK\r\nContent-Type: video/mpeg\r\nCache-Control: no-store\r\nConnection: close\r\nAccept-Ranges: none\r\ntransferMode.dlna.org: Streaming\r\ncontentFeatures.dlna.org: DLNA.ORG_OP=00;DLNA.ORG_CI=0\r\n\r\n".utf8)
+        let header = Data("HTTP/1.1 200 OK\r\nContent-Type: video/mpeg\r\nCache-Control: no-store\r\nConnection: close\r\nAccept-Ranges: none\r\ntransferMode.dlna.org: Streaming\r\ncontentFeatures.dlna.org: \(LiveDLNA.features)\r\n\r\n".utf8)
         // Close-delimited HTTP entity: no invented Content-Length, no chunk bytes
         // inside MPEG-TS. The connection remains open until Stop/disconnect.
         connection.send(content: header, completion: .contentProcessed { error in
@@ -104,14 +121,19 @@ final class HTTPServer {
                     self.close(connection, id); return
                 }
                 self.queuedBytes[id] = queued
+                self.publishHealth()
                 connection.send(content: bytes, completion: .contentProcessed { error in
                     guard self.clients[id] != nil else { return }
                     self.queuedBytes[id] = max(0, self.queuedBytes[id, default: 0] - bytes.count)
+                    if error == nil { self.health.lastWriteAt = monotonicSeconds() }
+                    self.publishHealth()
                     if error != nil { self.close(connection, id) }
                 })
             }
         }
         subscriptions[id] = subscription
+        health.everHadReader = true; health.lastWriteAt = monotonicSeconds()
+        publishHealth()
     }
     private func respond(_ connection: NWConnection, id: UUID, request: String) {
         let lines = request.components(separatedBy: "\r\n")

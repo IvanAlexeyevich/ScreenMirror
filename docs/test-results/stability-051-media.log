@@ -1,0 +1,6 @@
+Sparse-image frame pacing: monotonic PTS and periodic IDR requests OK
+Immediate TS: first IDR delivered without segment wait, GOP join, cache bounds, 1s key schedule OK
+Continuous TS subscription: IDR segment pre-roll, order and unsubscribe OK
+Native muxer: 360 H.264 access units, 564 AAC packets; bounded HLS window OK
+Paced and overflow fallback vs immediate stream: decoded video/audio checksums match exactly
+Production Swift MPEG-TS decoded: 360 video frames + AAC audio OK
