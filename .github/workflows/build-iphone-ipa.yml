@@ -1,0 +1,48 @@
+name: Build iPhone IPA (Windows installation)
+on:
+  workflow_dispatch:
+    inputs:
+      bundle_id:
+        description: 'Bundle ID приложения, например com.nikita.ScreenMirror'
+        required: true
+        default: 'com.local.ScreenMirror'
+permissions:
+  contents: read
+jobs:
+  iphone:
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      MIRROR_BUNDLE_ID: ${{ inputs.bundle_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate bundle ID
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os,re
+          value=os.environ['MIRROR_BUNDLE_ID']
+          assert re.fullmatch(r'[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+){2,}', value), 'Use a reverse DNS bundle ID with at least three parts'
+          assert len(value)<180, 'Bundle ID too long'
+          PY
+      - name: Test saved settings, UDP discovery and SOAP
+        run: python3 tools/run_tests.py
+      - name: Build for a real iPhone (unsigned)
+        shell: bash
+        run: |
+          xcodebuild -project ScreenMirror.xcodeproj \
+            -scheme ScreenMirror \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -configuration Release \
+            -derivedDataPath build/DerivedData \
+            MIRROR_BUNDLE_ID="$MIRROR_BUNDLE_ID" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+      - name: Package IPA and verify embedded Broadcast extension
+        run: python3 tools/package_ipa.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ScreenMirror-iPhone-unsigned
+          path: build/ScreenMirror-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
